@@ -1,3 +1,5 @@
+import torch.nn.functional as F
+
 def compute_kernel(x, y):
     x_size = x.size(0)
     y_size = y.size(0)
@@ -29,36 +31,25 @@ def stats_loss(X, X_hat):
     return G_loss_V
 
 class MMDLoss(nn.Module):
-    
     def __init__(self):
         super(MMDLoss, self).__init__()
 
     def forward(self,  x_recon, x, z, mu,logvar,alpha, delta):
-        l1_loss = nn.L1Loss()
-        #l1_loss=lo=nn.HuberLoss()
-        #recons_loss= F.mse_loss(x_recon, x)*delta
+        recons_loss= F.mse_loss(x_recon, x)*delta
         st_loss=stats_loss(x, x_recon)*delta
-      
         recons_loss=l1_loss(x,x_recon)*delta
   
         z_prior= torch.randn_like(z)
-    
-        
         mmd_loss= compute_mmd(z,z_prior)*alpha
-        #mmd_loss =0
-        
-        #loss =recons_loss +mmd_loss+st_loss
         loss = recons_loss+mmd_loss+st_loss
         return loss, recons_loss, mmd_loss, st_loss
     
 class TimeLoss(nn.Module):
-    
     def __init__(self):
         super(TimeLoss, self).__init__()
 
     def forward(self,recon_time,time,beta):
-        lo=nn.HuberLoss()
-        time_loss = lo(recon_time, time.unsqueeze(2))
+        time_loss = F.mse_loss(recon_time, time.unsqueeze(2))
         
         loss = beta*time_loss
         return loss
