@@ -35,3 +35,39 @@ def rounder(df, cols, dp):
 
   return df_rounded
 
+def sample_from_vae(vae_model, num_samples, batch_size, seq_len, device):
+    vae_model.to(device)
+    vae_model.eval()
+
+    with torch.no_grad():
+        synthetic_samples = torch.zeros(num_samples, seq_len, vae_model.input_size + 1).to(device)
+        
+        for i in range((num_samples + batch_size - 1) // batch_size):
+    
+            current_batch_size = min(batch_size, num_samples - i * batch_size)
+            
+          
+            z = torch.randn(current_batch_size, vae_model.latent_size).to(device)
+            noise = torch.randn_like(z) * 0.2 
+         
+            h_ = vae_model.fc3(z)
+            h_s = h_.unsqueeze(0).repeat(vae_model.lstm_dec.num_layers, 1, 1)
+            hidden = (h_s.contiguous(), h_s.contiguous())
+
+           
+            time = torch.distributions.Exponential(1 / mean_time).sample((current_batch_size, seq_len)).to(device)
+
+           
+            latent = z.unsqueeze(1).expand(-1, seq_len, -1)
+
+            
+            synthetic_sample, time_out, _ = vae_model.lstm_dec(latent, time, hidden, autoregressive=True)
+
+            combined_output = torch.cat((synthetic_sample, time_out), dim=2)
+
+            start_idx = i * batch_size
+            end_idx = start_idx + current_batch_size
+            synthetic_samples[start_idx:end_idx] = combined_output
+
+    return synthetic_samples.cpu().numpy()
+
