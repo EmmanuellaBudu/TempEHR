@@ -37,7 +37,6 @@ class MMDLoss(nn.Module):
     def forward(self,  x_recon, x, z, mu,logvar,alpha, delta):
         recons_loss= F.mse_loss(x_recon, x)*delta
         st_loss=stats_loss(x, x_recon)*delta
-        recons_loss=l1_loss(x,x_recon)*delta
   
         z_prior= torch.randn_like(z)
         mmd_loss= compute_mmd(z,z_prior)*alpha
