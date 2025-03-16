@@ -7,12 +7,6 @@ from scipy.stats import norm
 from scipy.stats import truncnorm
 
 def rounder_threshhold(df, cols):
-  """Rounds values in specified columns of a DataFrame to 0 or 1 based on a threshold of 0.5.
-  Args:
-      df: The DataFrame to modify .
-      cols: A list of column names to round.
-  """
-
   df_rounded = df.copy()
 
   for col in cols:
@@ -21,13 +15,6 @@ def rounder_threshhold(df, cols):
   return df_rounded
 
 def rounder(df, cols, dp):
-  """Rounds values in specified columns of a DataFrame.
-  Args:
-      df: The DataFrame to modify .
-      cols: A list of column names to round.
-      dp:decimal points
-  """
-
   df_rounded = df.copy()
 
   for col in cols:
@@ -46,7 +33,7 @@ def train_epoch(model, dataloader, optimizer, criterion, criterion_time, alpha, 
         recon_batch, recon_time, mu, logvar, z_real, h = model(sequences, time)
 
         loss_time = criterion_time(recon_time, time, beta)
-        loss_seq, recons, mmd, sts = criterion(recon_batch, sequences, z_real, mu, logvar, alpha, delta)
+        loss_seq, recons, mmd = criterion(recon_batch, sequences, z_real, mu, logvar, alpha, delta)
    
 
         loss = loss_seq + loss_time 
@@ -62,7 +49,7 @@ def train_epoch(model, dataloader, optimizer, criterion, criterion_time, alpha, 
 def validate_epoch(model, val_loader, criterion, criterion_time, alpha, beta, gamma, delta):
     model.eval()
     total_loss = 0
-    total_time_loss, total_recon_loss, total_mmd_loss,  total_sts_loss = 0, 0, 0, 0, 
+    total_time_loss, total_recon_loss, total_mmd_loss = 0, 0, 0
 
     with torch.no_grad():
         for batch_idx, (sequences, lengths, time) in enumerate(val_loader):
@@ -70,7 +57,7 @@ def validate_epoch(model, val_loader, criterion, criterion_time, alpha, beta, ga
             recon_batch, recon_time, mu, logvar, z_val, h = model(sequences, time)
 
             loss_time = criterion_time(recon_time, time, beta)
-            loss_seq, recons, mmd, sts = criterion(recon_batch, sequences, z_val, mu, logvar, alpha, delta)
+            loss_seq, recons, mmd = criterion(recon_batch, sequences, z_val, mu, logvar, alpha, delta)
  
 
             loss = loss_seq + loss_time 
@@ -79,11 +66,10 @@ def validate_epoch(model, val_loader, criterion, criterion_time, alpha, beta, ga
             total_recon_loss += recons.item()
             total_mmd_loss += mmd.item()
            
-            total_sts_loss += sts.item()
 
     num_batches = len(val_loader)
     return (total_loss / num_batches, total_time_loss / num_batches, total_recon_loss / num_batches, 
-            total_mmd_loss / num_batches,  total_sts_loss / num_batches)
+            total_mmd_loss / num_batches)
 
 def sample_from_vae(vae_model, num_samples, batch_size, seq_len, device):
     vae_model.to(device)
@@ -111,7 +97,7 @@ def sample_from_vae(vae_model, num_samples, batch_size, seq_len, device):
             latent = z.unsqueeze(1).expand(-1, seq_len, -1)
 
             
-            synthetic_sample, time_out, _ = vae_model.lstm_dec(latent, time, hidden, autoregressive=True)
+            synthetic_sample, time_out, _ = vae_model.lstm_dec(latent, time, hidden)
 
             combined_output = torch.cat((synthetic_sample, time_out), dim=2)
 
