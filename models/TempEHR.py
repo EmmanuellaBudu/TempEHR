@@ -41,8 +41,7 @@ class MovingAverage(nn.Module):
             trend = self.time_exp_moving_average(x, timestamps)
         else:
             raise ValueError(f"Unsupported trend_type: {self.trend_type}")
-        
-     
+
         out = torch.relu(self.embed_layer(trend))
         return out
 
@@ -78,31 +77,13 @@ class Decoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.projection = nn.Linear(output_size, input_size)  
         
-    def forward(self, x, timestamps, hidden, autoregressive=False):
+    def forward(self, x, timestamps, hidden):
         batch_size, seq_len, _ = x.size()
-        outputs = []
-        time_preds = []
-
-        x_t = x[:, 0, :].unsqueeze(1)  
-
-        for t in range(seq_len):
-            output, hidden = self.timeaware(x_t, timestamps[:, t].unsqueeze(1), hidden)
-            output = self.dropout(output)
-
-            prediction = torch.sigmoid(self.fc(output))  
-            time_pred = torch.relu(self.fc_time(output))
-
-            outputs.append(prediction)
-            time_preds.append(time_pred)
-
-            if autoregressive:
-                x_t = self.projection(prediction) 
-            else:
-                if t + 1 < seq_len:
-                    x_t = x[:, t + 1, :].unsqueeze(1)  
-
-        outputs = torch.cat(outputs, dim=1)
-        time_preds = torch.cat(time_preds, dim=1)
+    
+        output, hidden = self.timeaware(x, timestamps, hidden)
+        output = self.dropout(output)
+        prediction = torch.sigmoid(self.fc(output))  
+        time_pred = torch.relu(self.fc_time(output))
 
         return outputs, time_preds, hidden
     
@@ -129,7 +110,7 @@ class LSTMVAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
-    def forward(self, x, time, autoregressive=False):
+    def forward(self, x, time):
         enc_hidden, (hn, cn) = self.lstm_enc(x, time)
         moving = self.ma(x, time)
         mv_hidden, (h, c) = self.timeaware(moving, time)
@@ -145,6 +126,6 @@ class LSTMVAE(nn.Module):
 
         hidden = (h_s, h_s)
 
-        x_hat, time_out, _ = self.lstm_dec(latent, time, hidden, autoregressive=autoregressive)
+        x_hat, time_out, _ = self.lstm_dec(latent, time, hidden)
 
         return x_hat, time_out, mean, logvar, z, enc_hidden
