@@ -27,7 +27,7 @@ class MovingAverage(nn.Module):
         for t in range(1, x.size(1)):
             time_diff = timestamps[:, t] 
             time_diff = torch.clamp(time_diff, min=1e-6) 
-            alpha = torch.exp(-lam * (1 / time_diff+ 2.7183)).view(-1, 1)
+            alpha = torch.exp(-lam * (1 / time_diff)).view(-1, 1)
             ema[:, t, :] = alpha * x[:, t, :] + (1 - alpha) * ema[:, t - 1, :]
         
         return ema
